@@ -8,6 +8,7 @@ import           Data.Default.Class
 import           Data.Time
 import           GHC.Generics       (Generic)
 import           Network.Wai        (Request)
+import           Web.Cookie         (Cookies)
 
 data IsMatch = Matches | DoesNotMatch
   deriving (Eq, Show, Read, Generic, Ord)
@@ -64,8 +65,11 @@ data CookieSettings = CookieSettings
   -- | The optional settings to use for XSRF protection. Default @Just def@.
   , cookieXsrfSetting       :: !(Maybe XsrfCookieSettings)
   -- | An arbitrary check for the request. Use this to implement validating
-  --   the Origin/Referer headers. Default @const True@.
-  , cookieCheckRequest      :: !(Request -> Bool)
+  --   the Origin/Referer headers. Default always @True@, and therefore valid.
+  --
+  -- This check will only run after the check specified by 'cookieXsrfSetting'
+  -- succeeds (which always succeeds when set to @Nothing@).
+  , cookieCheckRequest      :: !(Request -> Cookies -> Bool)
   } deriving (Generic)
 
 instance Default CookieSettings where
@@ -80,7 +84,7 @@ defaultCookieSettings = CookieSettings
   , cookieSameSite          = SameSiteLax
   , cookieSessionCookieName = "JWT-Cookie"
   , cookieXsrfSetting       = Just def
-  , cookieCheckRequest      = const True
+  , cookieCheckRequest      = \_ _ -> True
   }
 
 

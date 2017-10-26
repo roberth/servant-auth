@@ -37,7 +37,7 @@ cookieAuthCheck ccfg jwtCfg = do
       Nothing                 -> True
 
     -- Apply the arbitrary request check from the configuration.
-    guard $ cookieCheckRequest ccfg req
+    guard $ cookieCheckRequest ccfg req cookies
 
     -- session cookie *must* be HttpOnly and Secure
     lookup (cookieSessionCookieName ccfg) cookies
