@@ -117,15 +117,15 @@ authSpec
       jwt <- createJWT theKey (newJWSHeader (Protected, HS256))
         (claims $ toJSON user)
       opts' <- addJwtToCookie jwt
-      let opts = addCookie (opts' & header (mk (xsrfHeaderName cookieCfg)) .~ ["blah"])
-                           (xsrfCookieName cookieCfg <> "=blah")
+      let opts = addCookie (opts' & header (mk (xsrfHeaderName xsrfCfg)) .~ ["blah"])
+                           (xsrfCookieName xsrfCfg <> "=blah")
       resp <- getWith opts (url port)
       let (cookieJar:_) = resp ^.. responseCookieJar
-          Just xxsrf = find (\x -> cookie_name x == xsrfCookieName cookieCfg)
+          Just xxsrf = find (\x -> cookie_name x == xsrfCookieName xsrfCfg)
                      $ destroyCookieJar cookieJar
           opts2 = defaults
             & cookies .~ Just cookieJar
-            & header (mk (xsrfHeaderName cookieCfg)) .~ [cookie_value xxsrf]
+            & header (mk (xsrfHeaderName (xsrfCfg))) .~ [cookie_value xxsrf]
       resp2 <- getWith opts2 (url port)
       resp2 ^? responseBody . _JSON `shouldBe` Just (length $ name user)
 
@@ -133,11 +133,11 @@ authSpec
       jwt <- createJWT theKey (newJWSHeader (Protected, HS256))
         (claims $ toJSON user)
       opts' <- addJwtToCookie jwt
-      let opts = addCookie (opts' & header (mk (xsrfHeaderName cookieCfg)) .~ ["blah"])
-                           (xsrfCookieName cookieCfg <> "=blah")
+      let opts = addCookie (opts' & header (mk (xsrfHeaderName xsrfCfg)) .~ ["blah"])
+                           (xsrfCookieName xsrfCfg <> "=blah")
       resp <- getWith opts (url port)
       let (cookieJar:_) = resp ^.. responseCookieJar
-          Just xxsrf = find (\x -> cookie_name x == xsrfCookieName cookieCfg)
+          Just xxsrf = find (\x -> cookie_name x == xsrfCookieName xsrfCfg)
                      $ destroyCookieJar cookieJar
       xxsrf ^. cookieExpiryTime `shouldBe` future
 
@@ -145,8 +145,8 @@ authSpec
       jwt <- createJWT theKey (newJWSHeader (Protected, HS256))
         (claims $ toJSON user)
       opts' <- addJwtToCookie jwt
-      let opts = addCookie (opts' & header (mk (xsrfHeaderName cookieCfg)) .~ ["blah"])
-                           (xsrfCookieName cookieCfg <> "=blah")
+      let opts = addCookie (opts' & header (mk (xsrfHeaderName xsrfCfg)) .~ ["blah"])
+                           (xsrfCookieName xsrfCfg <> "=blah")
       resp <- getWith opts (url port)
       let (cookieJar:_) = resp ^.. responseCookieJar
           Just token = find (\x -> cookie_name x == "JWT-Cookie")
@@ -168,8 +168,8 @@ cookieAuthSpec
                                                    $ \(user :: User) -> do
     jwt <- createJWT theKey (newJWSHeader (Protected, HS256)) (claims $ toJSON user)
     opts' <- addJwtToCookie jwt
-    let opts = addCookie (opts' & header (mk (xsrfHeaderName cookieCfg)) .~ ["blah"])
-                         (xsrfCookieName cookieCfg <> "=blerg")
+    let opts = addCookie (opts' & header (mk (xsrfHeaderName xsrfCfg)) .~ ["blah"])
+                         (xsrfCookieName xsrfCfg <> "=blerg")
     getWith opts (url port) `shouldHTTPErrorWith` status401
 
   it "fails if there is no CSRF header and cookie" $ \port -> property
@@ -182,8 +182,8 @@ cookieAuthSpec
                                                                  $ \(user :: User) -> do
     jwt <- createJWT theKey (newJWSHeader (Protected, HS256)) (claims $ toJSON user)
     opts' <- addJwtToCookie jwt
-    let opts = addCookie (opts' & header (mk (xsrfHeaderName cookieCfg)) .~ ["blah"])
-                         (xsrfCookieName cookieCfg <> "=blah")
+    let opts = addCookie (opts' & header (mk (xsrfHeaderName xsrfCfg)) .~ ["blah"])
+                         (xsrfCookieName xsrfCfg <> "=blah")
     resp <- getWith opts (url port)
     resp ^? responseBody . _JSON `shouldBe` Just (length $ name user)
 
@@ -326,10 +326,15 @@ theKey = unsafePerformIO . genJWK $ OctGenParam 256
 
 cookieCfg :: CookieSettings
 cookieCfg = def
+  { cookieExpires = Just future
+  , cookieIsSecure = NotSecure
+  , cookieXsrfSetting = Just xsrfCfg
+  }
+
+xsrfCfg :: XsrfCookieSettings
+xsrfCfg = def
   { xsrfCookieName = "TheyDinedOnMince"
   , xsrfHeaderName = "AndSlicesOfQuince"
-  , cookieExpires = Just future
-  , cookieIsSecure = NotSecure
   }
 
 jwtCfg :: JWTSettings
