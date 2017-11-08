@@ -70,6 +70,9 @@ data CookieSettings = CookieSettings
   -- This check will only run after the check specified by 'cookieXsrfSetting'
   -- succeeds (which always succeeds when set to @Nothing@).
   , cookieCheckRequest      :: !(Request -> Cookies -> Bool)
+  -- | Enable the default XSRF check (by default). Only disable this
+  -- if 'cookieCheckRequest' performs all checks by itself.
+  , cookieXsrfEnableDefaultCheck :: Bool
   } deriving (Generic)
 
 instance Default CookieSettings where
@@ -84,6 +87,7 @@ defaultCookieSettings = CookieSettings
   , cookieSameSite          = SameSiteLax
   , cookieSessionCookieName = "JWT-Cookie"
   , cookieXsrfSetting       = Just def
+  , cookieXsrfEnableDefaultCheck = True
   , cookieCheckRequest      = \_ _ -> True
   }
 

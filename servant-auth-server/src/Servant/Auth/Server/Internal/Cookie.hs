@@ -33,8 +33,10 @@ cookieAuthCheck ccfg jwtCfg = do
 
     -- Apply the XSRF check if enabled.
     guard $ case cookieXsrfSetting ccfg of
-      Just xsrfCookieSettings -> xsrfCookieAuthCheck xsrfCookieSettings req cookies
+      _ | not (cookieXsrfEnableDefaultCheck ccfg)
+                              -> True
       Nothing                 -> True
+      Just xsrfCookieSettings -> xsrfCookieAuthCheck xsrfCookieSettings req cookies
 
     -- Apply the arbitrary request check from the configuration.
     guard $ cookieCheckRequest ccfg req cookies
