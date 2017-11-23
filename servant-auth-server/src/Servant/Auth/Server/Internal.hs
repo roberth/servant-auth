@@ -47,7 +47,18 @@ instance ( n ~ 'S ('S 'Z)
 
       makeCookies :: AuthResult v -> IO (SetCookieList ('S ('S 'Z)))
       makeCookies authResult = do
-        csrf <- makeXsrfCookie cookieSettings
+        -- FIXME: This probably breaks unauthenticated XSRF
+        --        causing extra 401 errors :(
+        --        I didn't check, though.
+        --        Every time you reset the xsrf token, there is
+        --        potential for a race condition in the browser,
+        --        because the response may arrive between the
+        --        time the cookie was read and the time the next
+        --        request gets sent with the new cookie. This
+        --        race condition is highly problematic when concurrent
+        --        requests are being sent from the browser.
+        -- Used to be: csrf <- makeXsrfCookie cookieSettings
+        let csrf = noXsrfTokenCookie cookieSettings
         fmap (Just csrf `SetCookieCons`) $
           case authResult of
             (Authenticated v) -> do
