@@ -186,6 +186,15 @@ cookieAuthSpec
           resp <- getWith opts (url port)
           resp ^? responseBody . _JSON `shouldBe` Just (length $ name user)
 
+        it "succeeds if CSRF websocket protocol and cookie match, and JWT is valid" $ \port -> property
+                                                                       $ \(user :: User) -> do
+          jwt <- createJWT theKey (newJWSHeader ((), HS256)) (claims $ toJSON user)
+          opts' <- addJwtToCookie jwt
+          let opts = addCookie (opts' & header (mk ("sec-websocket-protocol")) .~ ["\tWhich-they-ate-with-a-runcible-spoon-" <> "blah" <> ", foo-soap.example.com, bar-protobuf.example.com"])
+                               (xsrfCookieName cookieCfg <> "=blah")
+          resp <- getWith opts (url port)
+          resp ^? responseBody . _JSON `shouldBe` Just (length $ name user)
+
       around (testWithApplication . return $ appWithCookie cookieOnlyApi cookieCfg{xsrfExcludeGet = True}) $ do
         it "succeeds without CSRF header for GET when enabled, and JWT is valid"
               $ \port -> property
@@ -338,6 +347,7 @@ cookieCfg = def
   { xsrfCookieName = "TheyDinedOnMince"
   , xsrfHeaderName = "AndSlicesOfQuince"
   , xsrfSingleSubmit = True
+  , xsrfWebSocketProtocolPrefix = Just "Which-they-ate-with-a-runcible-spoon-"
   , cookieExpires = Just future
   , cookieIsSecure = NotSecure
   }

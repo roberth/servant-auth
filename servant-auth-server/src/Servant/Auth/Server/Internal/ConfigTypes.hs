@@ -75,6 +75,15 @@ data CookieSettings = CookieSettings
   -- made. This used to be the default behavior up to @servant-auth@
   -- 0.3.2.0.
   , xsrfSingleSubmit  :: Bool
+  -- | If @Nothing@, ignore the Sec-Websocket-Protocol header.
+  --
+  --   If @Just prefix@, allow the client to use a subprotocol instead of a header.
+  --   This lets you work around the limitation of the browser WebSockets API that
+  --   the client can not add a custom HTTP header.
+  --
+  --   @prefix@ must be a valid HTTP/1.1 "token". The client must first URL encode
+  --   the XSRF token and then concatenate it to the @prefix@.
+  , xsrfWebSocketProtocolPrefix :: Maybe BS.ByteString
   } deriving (Eq, Show, Generic)
 
 instance Default CookieSettings where
@@ -93,6 +102,7 @@ defaultCookieSettings = CookieSettings
     , xsrfHeaderName    = "X-XSRF-TOKEN"
     , xsrfExcludeGet    = False
     , xsrfSingleSubmit  = False
+    , xsrfWebSocketProtocolPrefix = Nothing
     }
 
 

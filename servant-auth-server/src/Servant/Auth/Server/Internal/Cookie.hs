@@ -1,6 +1,7 @@
 module Servant.Auth.Server.Internal.Cookie where
 
 import           Blaze.ByteString.Builder (toByteString)
+import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import qualified Crypto.JOSE              as Jose
@@ -10,8 +11,11 @@ import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Base64   as BS64
 import qualified Data.ByteString.Lazy     as BSL
 import           Data.CaseInsensitive     (mk)
-import           Data.Maybe               (isJust)
+import           Data.Char (ord)
+import           Data.Foldable (toList)
+import           Data.Maybe               (isJust, listToMaybe)
 import           Network.HTTP.Types       (methodGet)
+import           Network.HTTP.Types.URI   (urlDecode)
 import           Network.Wai              (Request, requestHeaders, requestMethod)
 import           Servant                  (AddHeader, addHeader)
 import           System.Entropy           (getEntropy)
@@ -30,7 +34,8 @@ cookieAuthCheck ccfg jwtCfg = do
     let cookies = parseCookies cookies'
     xsrfCookie <- lookup (xsrfCookieName ccfg) cookies
     when (((requestMethod req) /= methodGet) || not (xsrfExcludeGet ccfg)) $ do
-      xsrfHeader <- lookup (mk $ xsrfHeaderName ccfg) $ requestHeaders req
+      xsrfHeader <- (lookup (mk $ xsrfHeaderName ccfg) $ requestHeaders req)
+                    <|> getCsrfFromProtocol ccfg req
       guard $ xsrfCookie `constTimeEq` xsrfHeader
     -- session cookie *must* be HttpOnly and Secure
     lookup (sessionCookieName ccfg) cookies
@@ -51,6 +56,23 @@ hasXsrfCookie ccfg req = isJust $ do
   let cookies = parseCookies cookies'
   token <- lookup (xsrfCookieName ccfg) cookies
   guard $ not (BS.null token)
+
+getCsrfFromProtocol :: CookieSettings -> Request -> Maybe BS.ByteString
+getCsrfFromProtocol cookieSettings req = wsProtocolToken where
+  wsProtocolToken = listToMaybe $
+    do
+      protocolPrefix <- toList $ xsrfWebSocketProtocolPrefix cookieSettings
+      (headerName, headerValue) <- requestHeaders req
+
+      guard $ headerName == "Sec-WebSocket-Protocol"
+
+      protocol <- map bsTrim $ BS.split (fromIntegral $ ord ',') headerValue
+
+      raw <- toList $ BS.stripPrefix protocolPrefix protocol
+      return $ urlDecode True raw
+
+  bsTrim = BS.reverse . BS.dropWhile bsIsSpace . BS.reverse . BS.dropWhile bsIsSpace
+  bsIsSpace = (`BS.elem` " \t\r\n")
 
 -- | Makes a cookie to be used for CSRF.
 makeCsrfCookie :: CookieSettings -> IO SetCookie
