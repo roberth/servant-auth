@@ -5,6 +5,7 @@
 module Servant.Auth.Server.Internal where
 
 import           Control.Monad.Trans (liftIO)
+import           Network.Wai         (Request)
 import           Servant             ((:>), Handler, HasServer (..),
                                       Proxy (..),
                                       HasContextEntry(getContextEntry))
@@ -42,7 +43,7 @@ instance ( n ~ 'S ('S 'Z)
       authCheck :: DelayedIO (AuthResult v, SetCookieList ('S ('S 'Z)))
       authCheck = withRequest $ \req -> liftIO $ do
         authResult <- runAuthCheck (runAuths (Proxy :: Proxy auths) context) req
-        cookies <- makeCookies authResult
+        cookies <- makeCookies req authResult
         return (authResult, cookies)
 
       jwtSettings :: JWTSettings
@@ -51,10 +52,12 @@ instance ( n ~ 'S ('S 'Z)
       cookieSettings :: CookieSettings
       cookieSettings = getContextEntry context
 
-      makeCookies :: AuthResult v -> IO (SetCookieList ('S ('S 'Z)))
-      makeCookies authResult = do
-        csrf <- makeCsrfCookie cookieSettings
-        fmap (Just csrf `SetCookieCons`) $
+      makeCookies :: Request -> AuthResult v -> IO (SetCookieList ('S ('S 'Z)))
+      makeCookies req authResult = do
+        csrf <- when' (xsrfSingleSubmit cookieSettings
+                       || not (hasXsrfCookie cookieSettings req)) $ do
+          makeCsrfCookie cookieSettings
+        fmap (csrf `SetCookieCons`) $
           case authResult of
             (Authenticated v) -> do
               ejwt <- makeSessionCookie cookieSettings jwtSettings v
@@ -62,6 +65,9 @@ instance ( n ~ 'S ('S 'Z)
                 Nothing  -> return $ Nothing `SetCookieCons` SetCookieNil
                 Just jwt -> return $ Just jwt `SetCookieCons` SetCookieNil
             _ -> return $ Nothing `SetCookieCons` SetCookieNil
+
+      when' True m = Just <$> m
+      when' False _ = pure Nothing
 
       go :: ( old ~ ServerT api Handler
             , new ~ ServerT (AddSetCookiesApi n api) Handler

@@ -337,6 +337,7 @@ cookieCfg :: CookieSettings
 cookieCfg = def
   { xsrfCookieName = "TheyDinedOnMince"
   , xsrfHeaderName = "AndSlicesOfQuince"
+  , xsrfSingleSubmit = True
   , cookieExpires = Just future
   , cookieIsSecure = NotSecure
   }

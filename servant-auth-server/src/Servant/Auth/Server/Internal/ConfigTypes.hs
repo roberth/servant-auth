@@ -67,6 +67,14 @@ data CookieSettings = CookieSettings
   , xsrfHeaderName    :: BS.ByteString
   -- | Exclude GET request method from CSRF protection.
   , xsrfExcludeGet    :: Bool
+  -- | Option to reset the XSRF token on every request. Default
+  -- @False@: do not reset on every request.
+  --
+  -- Enabling single submit introduces a race condition in the browser
+  -- client that causes false 401 errors when concurrent requests are
+  -- made. This used to be the default behavior up to @servant-auth@
+  -- 0.3.2.0.
+  , xsrfSingleSubmit  :: Bool
   } deriving (Eq, Show, Generic)
 
 instance Default CookieSettings where
@@ -84,6 +92,7 @@ defaultCookieSettings = CookieSettings
     , xsrfCookiePath    = Just "/"
     , xsrfHeaderName    = "X-XSRF-TOKEN"
     , xsrfExcludeGet    = False
+    , xsrfSingleSubmit  = False
     }
 
 

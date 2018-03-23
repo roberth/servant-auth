@@ -10,8 +10,9 @@ import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Base64   as BS64
 import qualified Data.ByteString.Lazy     as BSL
 import           Data.CaseInsensitive     (mk)
+import           Data.Maybe               (isJust)
 import           Network.HTTP.Types       (methodGet)
-import           Network.Wai              (requestHeaders, requestMethod)
+import           Network.Wai              (Request, requestHeaders, requestMethod)
 import           Servant                  (AddHeader, addHeader)
 import           System.Entropy           (getEntropy)
 import           Web.Cookie
@@ -20,7 +21,6 @@ import Servant.Auth.Server.Internal.ConfigTypes
 import Servant.Auth.Server.Internal.JWT         (FromJWT (decodeJWT), ToJWT,
                                                  makeJWT)
 import Servant.Auth.Server.Internal.Types
-
 
 cookieAuthCheck :: FromJWT usr => CookieSettings -> JWTSettings -> AuthCheck usr
 cookieAuthCheck ccfg jwtCfg = do
@@ -44,6 +44,13 @@ cookieAuthCheck ccfg jwtCfg = do
     Right v -> case decodeJWT v of
       Left _ -> mzero
       Right v' -> return v'
+
+hasXsrfCookie :: CookieSettings -> Request -> Bool
+hasXsrfCookie ccfg req = isJust $ do
+  cookies' <- lookup "Cookie" $ requestHeaders req
+  let cookies = parseCookies cookies'
+  token <- lookup (xsrfCookieName ccfg) cookies
+  guard $ not (BS.null token)
 
 -- | Makes a cookie to be used for CSRF.
 makeCsrfCookie :: CookieSettings -> IO SetCookie
